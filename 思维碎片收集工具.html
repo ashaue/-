@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="随手记录思维碎片，专注不被打断。纯离线、可安装到主屏幕。">
+<meta name="theme-color" content="#f5f5f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15171c" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="碎片">
+<title>碎片 · 思维收集</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" href="icon-512.png">
+<style>
+  :root{
+    --bg:#f5f5f3; --card:#ffffff; --text:#1c1e21; --text-2:#9aa0a6; --line:#e7e7e4;
+    --accent:#5b6cff; --accent-soft:rgba(91,108,255,.14);
+    --danger:#e5484d;
+    --toast-bg:rgba(28,30,33,.94); --toast-fg:#f5f5f3;
+    --radius:14px;
+    --safe-t:env(safe-area-inset-top,0px);
+    --safe-b:env(safe-area-inset-bottom,0px);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#15171c; --card:#1d2027; --text:#e7e9ee; --text-2:#8a9099; --line:#272b33;
+      --toast-bg:rgba(231,233,238,.95); --toast-fg:#15171c;
+    }
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;overscroll-behavior-y:none}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+    min-height:100vh;min-height:100dvh;
+  }
+  .wrap{max-width:600px;margin:0 auto;padding-bottom:calc(30px + var(--safe-b))}
+
+  /* 顶部：标题 + 输入，固定在上方随时可记（含刘海屏安全区） */
+  .top{position:sticky;top:0;z-index:20;background:var(--bg);padding:0 16px;padding-top:var(--safe-t)}
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 0 2px}
+  .brand{display:flex;align-items:baseline;gap:8px}
+  h1{margin:0;font-size:19px;font-weight:700;letter-spacing:.5px}
+  .count{font-size:12px;color:var(--accent);font-variant-numeric:tabular-nums}
+  .actions{display:flex;gap:2px;margin:0 -6px}
+  .icon-btn{
+    width:44px;height:44px;border-radius:12px;border:none;background:transparent;
+    color:var(--text-2);font-size:20px;line-height:1;cursor:pointer;touch-action:manipulation;
+    display:inline-flex;align-items:center;justify-content:center;
+  }
+  .icon-btn:hover{background:var(--card);color:var(--text)}
+  .icon-btn:active{background:var(--card)}
+
+  .search-bar{padding:8px 0 2px}
+  .search-bar input{
+    width:100%;padding:12px 14px;font-size:16px;border-radius:12px;
+    border:1px solid var(--line);background:var(--card);color:var(--text);outline:none;
+  }
+  .search-bar input:focus{border-color:var(--accent)}
+
+  .composer{margin:10px 0 4px}
+  textarea{
+    width:100%;padding:14px 15px;font-size:17px;line-height:1.5;
+    border-radius:var(--radius);border:1px solid var(--line);
+    background:var(--card);color:var(--text);resize:none;outline:none;
+    font-family:inherit;transition:border-color .15s,box-shadow .15s;
+    max-height:180px;overflow-y:auto;-webkit-user-select:text;user-select:text;
+  }
+  textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  textarea::placeholder{color:var(--text-2)}
+  .composer-foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;min-height:24px}
+  .hint{font-size:12px;color:var(--text-2)}
+  .save-btn{
+    border:none;border-radius:999px;padding:0 22px;height:40px;font-size:15px;font-weight:600;
+    background:var(--accent);color:#fff;cursor:pointer;touch-action:manipulation;
+  }
+  .save-btn:active{opacity:.85}
+  .mini-btn{
+    border:none;background:transparent;color:var(--text-2);font-size:12px;cursor:pointer;padding:6px 8px;border-radius:8px;touch-action:manipulation;
+  }
+  .mini-btn:hover{color:var(--text);background:var(--card)}
+
+  /* 碎片列表 */
+  .frags{list-style:none;margin:10px 0 0;padding:0}
+  .frag{display:flex;gap:6px;padding:14px 2px;border-bottom:1px solid var(--line);align-items:flex-start}
+  .frag-body{flex:1;min-width:0}
+  .frag-text{font-size:16px;line-height:1.6;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}
+  .frag-time{font-size:12px;color:var(--text-2);margin-top:6px;font-variant-numeric:tabular-nums}
+  .del{
+    flex:none;width:44px;height:44px;margin-top:-4px;margin-right:-8px;border:none;border-radius:10px;
+    background:transparent;color:var(--text-2);font-size:18px;line-height:1;cursor:pointer;
+    opacity:.4;touch-action:manipulation;
+  }
+  .del:hover,.del:active{opacity:1;background:var(--line);color:var(--text)}
+
+  .empty{padding:80px 16px;text-align:center;color:var(--text-2)}
+  .empty-main{font-size:16px;margin-bottom:6px}
+  .empty-sub{font-size:13px}
+
+  .more-wrap{text-align:center;padding:18px 0 4px}
+  .more-btn{
+    border:1px solid var(--line);background:var(--card);color:var(--text-2);
+    border-radius:999px;padding:10px 20px;font-size:14px;cursor:pointer;touch-action:manipulation;
+  }
+  .more-btn:hover{color:var(--text)}
+
+  .foot{padding:30px 16px 6px;text-align:center;color:var(--text-2);font-size:12px;line-height:1.7}
+
+  .hidden{display:none!important}
+
+  /* 提示 */
+  .toast{
+    position:fixed;left:50%;bottom:calc(26px + var(--safe-b));z-index:60;
+    transform:translate(-50%,10px);opacity:0;pointer-events:none;
+    background:var(--toast-bg);color:var(--toast-fg);
+    font-size:14px;padding:11px 18px;border-radius:999px;
+    display:flex;align-items:center;gap:12px;
+    transition:opacity .2s,transform .2s;max-width:86vw;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast .u-btn{
+    border:none;border-radius:999px;padding:6px 16px;font-size:13px;cursor:pointer;
+    background:var(--accent);color:#fff;flex:none;
+  }
+
+  /* 底部操作面板 */
+  .mask{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+  .mask.show{opacity:1;pointer-events:auto}
+  .sheet{
+    position:fixed;left:50%;bottom:0;transform:translate(-50%,105%);z-index:50;
+    width:100%;max-width:600px;background:var(--card);border-radius:18px 18px 0 0;
+    padding:10px 12px calc(16px + var(--safe-b));
+    box-shadow:0 -8px 30px rgba(0,0,0,.16);
+    transition:transform .25s cubic-bezier(.2,.8,.25,1);
+  }
+  .sheet.show{transform:translate(-50%,0)}
+  .sheet button{
+    display:block;width:100%;text-align:left;padding:15px 16px;font-size:16px;
+    background:none;border:none;border-radius:12px;color:var(--text);cursor:pointer;touch-action:manipulation;
+  }
+  .sheet button:hover{background:var(--bg)}
+  .sheet button.danger{color:var(--danger)}
+  .sheet .g{margin-top:6px;padding-top:6px;border-top:1px solid var(--line)}
+  .sheet .g button{text-align:center;color:var(--text-2)}
+
+  /* 确认弹层 */
+  .dlg{position:fixed;inset:0;z-index:55;display:flex;align-items:center;justify-content:center;padding:24px}
+  .dlg-card{background:var(--card);border-radius:18px;padding:24px 20px 16px;width:100%;max-width:320px;box-shadow:0 12px 40px rgba(0,0,0,.22)}
+  .dlg-title{font-size:16px;font-weight:600;margin-bottom:8px}
+  .dlg-msg{font-size:13px;color:var(--text-2);line-height:1.7;margin-bottom:18px}
+  .install-steps{margin:0 0 4px;padding:0;list-style:none;font-size:13px;color:var(--text-2);line-height:1.9}
+  .dlg-actions{display:flex;gap:10px}
+  .dlg-actions .btn{flex:1;padding:12px 0;border-radius:12px;border:none;font-size:15px;cursor:pointer;touch-action:manipulation}
+  .btn{background:var(--bg);color:var(--text)}
+  .btn.danger{background:var(--danger);color:#fff}
+
+  /* 安装提示条 */
+  .install-bar{
+    position:fixed;left:50%;bottom:calc(26px + var(--safe-b));transform:translate(-50%,10px);z-index:45;
+    display:flex;align-items:center;gap:10px;max-width:88vw;
+    background:var(--toast-bg);color:var(--toast-fg);
+    padding:11px 16px;border-radius:14px;font-size:13px;
+    opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
+  }
+  .install-bar.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+  .install-bar button{
+    border:none;border-radius:999px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;
+    background:var(--accent);color:#fff;flex:none;
+  }
+  .install-bar .x{
+    background:transparent;color:var(--toast-fg);padding:4px 6px;font-size:14px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <header>
+      <div class="brand"><h1>碎片</h1><span id="count" class="count"></span></div>
+      <div class="actions">
+        <button id="searchBtn" class="icon-btn" aria-label="搜索碎片">&#128269;</button>
+        <button id="menuBtn" class="icon-btn" aria-label="更多操作">&#8943;</button>
+      </div>
+    </header>
+    <div id="searchBar" class="search-bar hidden">
+      <input id="searchInput" type="search" placeholder="搜索碎片…" autocomplete="off">
+    </div>
+    <div class="composer">
+      <textarea id="input" rows="1" placeholder="想到什么，随手记下来…" autocomplete="off"></textarea>
+      <div class="composer-foot">
+        <span class="hint">换行可用「记下」保存</span>
+        <button id="saveBtn" class="save-btn">记下</button>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <ul id="list" class="frags" aria-label="碎片列表"></ul>
+    <div id="empty" class="empty hidden">
+      <div class="empty-main">还没有碎片</div>
+      <div class="empty-sub">想到什么随手记下，专注不被打断</div>
+    </div>
+    <div id="moreWrap" class="more-wrap hidden"><button id="loadMoreBtn" class="more-btn">加载更早的碎片</button></div>
+  </main>
+
+  <footer class="foot">数据仅保存在本浏览器（localStorage）· 纯离线可用<br>建议定期「下载 .txt」备份</footer>
+</div>
+
+<div id="installBar" class="install-bar">
+  <span id="installText">可安装到主屏幕，像 App 一样使用</span>
+  <button id="installGo">安装</button>
+  <button class="x" id="installClose" aria-label="关闭">&#10005;</button>
+</div>
+
+<div id="toast" class="toast"></div>
+<div id="undo" class="toast"><span id="undoText"></span><button id="undoBtn" class="u-btn">撤销</button></div>
+
+<div id="mask" class="mask"></div>
+<div id="sheet" class="sheet" role="menu" aria-label="更多操作">
+  <button data-act="install">安装到主屏幕</button>
+  <button data-act="copy">复制全部内容</button>
+  <button data-act="download">下载为 .txt</button>
+  <button data-act="clear" class="danger">清空所有碎片</button>
+  <div class="g"><button data-act="cancel">取消</button></div>
+</div>
+
+<div id="dlg" class="dlg hidden" role="dialog" aria-modal="true" aria-label="安装说明">
+  <div class="dlg-card">
+    <div class="dlg-title">添加到主屏幕</div>
+    <ul class="install-steps">
+      <li>· 安卓 Chrome：菜单 →「安装应用」/「添加到主屏幕」</li>
+      <li>· iPhone Safari：分享 →「添加到主屏幕」</li>
+    </ul>
+    <div class="dlg-actions">
+      <button class="btn" id="dlgCancel2">知道了</button>
+    </div>
+  </div>
+</div>
+
+<div id="dlgClear" class="dlg hidden" role="dialog" aria-modal="true" aria-label="清空确认">
+  <div class="dlg-card">
+    <div class="dlg-title">清空所有碎片？</div>
+    <div class="dlg-msg">删除后无法恢复。建议先复制或下载备份。</div>
+    <div class="dlg-actions">
+      <button class="btn" id="dlgCancel">再想想</button>
+      <button class="btn danger" id="dlgOk">确认清空</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+(function () {
+  var LS_KEY = 'fragment-notes.v1';
+  var MAX_ITEMS = 5000;
+  var RENDER_STEP = 200;
+  var items = [];
+  var shownCount = RENDER_STEP;
+  var query = '';
+  var undoStack = [];
+  var toastTimer = null;
+  var undoTimer = null;
+  var deferredPrompt = null;
+  var installClicked = false;
+
+  function $(sel) { return document.querySelector(sel); }
+
+  var input = $('#input'), listEl = $('#list'), emptyEl = $('#empty'),
+      countEl = $('#count'), moreWrap = $('#moreWrap'), loadMoreBtn = $('#loadMoreBtn'),
+      searchBar = $('#searchBar'), searchInput = $('#searchInput'),
+      searchBtn = $('#searchBtn'), menuBtn = $('#menuBtn'), clearInput = $('#clearInput'),
+      saveBtn = $('#saveBtn'),
+      mask = $('#mask'), sheet = $('#sheet'),
+      dlg = $('#dlg'), dlgCancel2 = $('#dlgCancel2'),
+      dlgClear = $('#dlgClear'), dlgOk = $('#dlgOk'), dlgCancel = $('#dlgCancel'),
+      installBar = $('#installBar'), installText = $('#installText'),
+      installGo = $('#installGo'), installClose = $('#installClose'),
+      toastEl = $('#toast'), undoEl = $('#undo'), undoText = $('#undoText'), undoBtn = $('#undoBtn');
+
+  function pad2(n) { return n < 10 ? '0' + n : String(n); }
+
+  function fmtTime(ts) {
+    var d = new Date(ts), now = new Date();
+    var hm = pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    if (d.toDateString() === now.toDateString()) return '今天 ' + hm;
+    var y = new Date(now); y.setDate(now.getDate() - 1);
+    if (d.toDateString() === y.toDateString()) return '昨天 ' + hm;
+    if (d.getFullYear() === now.getFullYear()) return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + hm;
+    return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      var parsed = raw ? JSON.parse(raw) : [];
+      items = Array.isArray(parsed) ? parsed : [];
+    } catch (e) { items = []; }
+    items = items.filter(function (i) { return i && typeof i.text === 'string' && typeof i.ts === 'number'; });
+  }
+
+  function persist() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(items.slice(0, MAX_ITEMS))); }
+    catch (e) { toast('保存失败：本地存储空间不足'); }
+  }
+
+  function buildItem(item) {
+    var li = document.createElement('li');
+    li.className = 'frag';
+    var body = document.createElement('div');
+    body.className = 'frag-body';
+    var txt = document.createElement('div');
+    txt.className = 'frag-text';
+    txt.textContent = item.text;
+    var time = document.createElement('div');
+    time.className = 'frag-time';
+    time.textContent = fmtTime(item.ts);
+    body.appendChild(txt); body.appendChild(time);
+    var del = document.createElement('button');
+    del.className = 'del';
+    del.textContent = '\u00d7';
+    del.setAttribute('aria-label', '删除这条碎片');
+    del.addEventListener('click', function (e) {
+      e.stopPropagation();
+      removeItem(item.id);
+    });
+    li.appendChild(body); li.appendChild(del);
+    return li;
+  }
+
+  function render() {
+    var q = query.trim().toLowerCase();
+    var pool = q
+      ? items.filter(function (i) { return i.text.toLowerCase().indexOf(q) !== -1; })
+      : items;
+    countEl.textContent = items.length ? String(items.length) : '';
+    emptyEl.classList.toggle('hidden', items.length > 0);
+    listEl.textContent = '';
+    var slice = pool.slice(0, shownCount);
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < slice.length; i++) frag.appendChild(buildItem(slice[i]));
+    listEl.appendChild(frag);
+    var rest = pool.length - shownCount;
+    moreWrap.classList.toggle('hidden', rest <= 0);
+    loadMoreBtn.textContent = '加载更早的碎片（还有 ' + rest + ' 条）';
+  }
+
+  function removeItem(id) {
+    for (var k = 0; k < items.length; k++) {
+      if (items[k].id === id) {
+        undoStack.push(items[k]);
+        items.splice(k, 1);
+        break;
+      }
+    }
+    persist(); shownCount = RENDER_STEP; render(); showUndo();
+  }
+
+  function showUndo() {
+    undoText.textContent = '已删除 1 条';
+    undoEl.classList.add('show');
+    clearTimeout(undoTimer);
+    undoTimer = setTimeout(function () { undoEl.classList.remove('show'); }, 4000);
+  }
+
+  undoBtn.addEventListener('click', function () {
+    var item = undoStack.pop();
+    if (item) { items.unshift(item); persist(); shownCount = RENDER_STEP; render(); }
+    undoEl.classList.remove('show');
+  });
+
+  function addFragment() {
+    var t = input.value.trim();
+    if (!t) return;
+    items.unshift({
+      id: String(Date.now()) + Math.random().toString(36).slice(2, 7),
+      text: t,
+      ts: Date.now()
+    });
+    if (items.length > MAX_ITEMS) items.length = MAX_ITEMS;
+    persist();
+    input.value = ''; autoResize();
+    shownCount = RENDER_STEP; render();
+    toast('已记下');
+  }
+
+  function saveAndKeepFocus() {
+    addFragment();
+    input.focus();
+  }
+
+  function autoResize() {
+    input.style.height = 'auto';
+    input.style.height = input.scrollHeight + 'px';
+  }
+
+  input.addEventListener('input', function () {
+    autoResize();
+    clearInput.classList.toggle('hidden', !input.value);
+  });
+
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      saveAndKeepFocus();
+    } else if (e.key === 'Escape') {
+      if (input.value) { input.value = ''; autoResize(); clearInput.classList.add('hidden'); }
+      input.blur();
+    }
+  });
+
+  saveBtn.addEventListener('click', function () {
+    saveAndKeepFocus();
+  });
+
+  clearInput.addEventListener('click', function () {
+    input.value = ''; autoResize();
+    clearInput.classList.add('hidden');
+    input.focus();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    var ae = document.activeElement;
+    var tag = ae ? ae.tagName : '';
+    var typing = tag === 'INPUT' || tag === 'TEXTAREA';
+    if (e.key === '/' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      e.preventDefault(); input.focus();
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && !typing) {
+      e.preventDefault(); input.focus();
+    }
+    if (e.key === 'Escape') {
+      if (sheet.classList.contains('show')) closeSheet();
+      if (!dlg.classList.contains('hidden')) closeDlg();
+      if (!dlgClear.classList.contains('hidden')) closeDlgClear();
+      hideInstallBar();
+    }
+  });
+
+  searchBtn.addEventListener('click', function () {
+    searchBar.classList.toggle('hidden');
+    if (!searchBar.classList.contains('hidden')) searchInput.focus();
+    else { searchInput.value = ''; query = ''; shownCount = RENDER_STEP; render(); }
+  });
+
+  searchInput.addEventListener('input', function () {
+    query = searchInput.value;
+    shownCount = RENDER_STEP;
+    render();
+  });
+
+  searchInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      searchInput.value = ''; query = '';
+      searchBar.classList.add('hidden');
+      shownCount = RENDER_STEP; render();
+      input.focus();
+    }
+  });
+
+  loadMoreBtn.addEventListener('click', function () {
+    shownCount += RENDER_STEP;
+    render();
+  });
+
+  function openSheet() { mask.classList.add('show'); sheet.classList.add('show'); }
+  function closeSheet() { mask.classList.remove('show'); sheet.classList.remove('show'); }
+
+  menuBtn.addEventListener('click', openSheet);
+  mask.addEventListener('click', function () { closeSheet(); closeDlg(); closeDlgClear(); });
+
+  sheet.addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    var act = btn.getAttribute('data-act');
+    if (act === 'install') { closeSheet(); requestInstall(); }
+    else if (act === 'copy') copyAll();
+    else if (act === 'download') downloadTxt();
+    else if (act === 'clear') { closeSheet(); openDlgClear(); }
+    else closeSheet();
+  });
+
+  /* ---- PWA：安装到主屏幕 ---- */
+  function isStandalone() {
+    return window.matchMedia && (window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true);
+  }
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!isStandalone() && !installClicked) showInstallBar();
+  });
+
+  window.addEventListener('appinstalled', function () {
+    hideInstallBar();
+    toast('已安装，可从主屏幕打开');
+  });
+
+  function showInstallBar() {
+    installBar.classList.add('show');
+  }
+  function hideInstallBar() {
+    installBar.classList.remove('show');
+  }
+
+  installClose.addEventListener('click', hideInstallBar);
+  installGo.addEventListener('click', requestInstall);
+
+  function requestInstall() {
+    installClicked = true;
+    hideInstallBar();
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function (choice) {
+        deferredPrompt = null;
+        if (choice && choice.outcome === 'accepted') toast('正在安装…');
+      });
+      return;
+    }
+    // 无 beforeinstallprompt（iOS Safari / 已安装）：给出手动添加到主屏幕的步骤
+    openDlg();
+  }
+
+  function openDlg() { dlg.classList.remove('hidden'); }
+  function closeDlg() { dlg.classList.add('hidden'); }
+  dlgCancel2.addEventListener('click', closeDlg);
+
+  function openDlgClear() { dlgClear.classList.remove('hidden'); }
+  function closeDlgClear() { dlgClear.classList.add('hidden'); }
+  dlgCancel.addEventListener('click', closeDlgClear);
+  dlgOk.addEventListener('click', function () {
+    items = [];
+    persist();
+    shownCount = RENDER_STEP; render();
+    closeDlgClear();
+    toast('碎片已清空');
+  });
+
+  /* ---- PWA：Service Worker 离线 ---- */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {
+        /* file:// 或环境不支持时静默降级，不影响使用 */
+      });
+    });
+  }
+
+  function allLines() {
+    return items.map(function (i) { return '[' + fmtTime(i.ts) + '] ' + i.text; });
+  }
+
+  function copyAll() {
+    var content = allLines().join('\n');
+    if (!content) { closeSheet(); toast('还没有可复制的碎片'); return; }
+    var done = function () { closeSheet(); toast('已复制全部内容'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(content).then(done).catch(function () {
+        fallbackCopy(content); done();
+      });
+    } else { fallbackCopy(content); done(); }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  function downloadTxt() {
+    var d = new Date();
+    var name = '碎片-' + pad2(d.getMonth() + 1) + pad2(d.getDate()) + '-' + pad2(d.getHours()) + pad2(d.getMinutes()) + '.txt';
+    var content = allLines().join('\n') || '（暂无碎片）';
+    var blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    closeSheet();
+    toast('已下载 ' + name);
+  }
+
+  function toast(msg, ms) {
+    ms = ms || 1600;
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, ms);
+  }
+
+  /* 通过主屏幕快捷方式（?new=1）打开时，直接聚焦输入 */
+  if (window.location.search.indexOf('new=1') !== -1) {
+    setTimeout(function () { input.focus(); }, 300);
+  }
+
+  load();
+  render();
+  autoResize();
+  input.focus();
+
+  /* 已首次访问且可安装时，稍后温和提示一次 */
+  if (!isStandalone() && localStorage.getItem('fragments-install-hint') !== '1') {
+    setTimeout(function () {
+      if (deferredPrompt && !installClicked) {
+        showInstallBar();
+        localStorage.setItem('fragments-install-hint', '1');
+      }
+    }, 8000);
+  }
+})();
+</script>
+</body>
+</html>
